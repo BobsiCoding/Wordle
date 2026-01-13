@@ -2,38 +2,49 @@
 #include <fstream>
 #include <cstdlib>
 
-void mainMenu();
+int mainMenu();
 int mySizeOf(const char* str);
 int myChoice();
 bool blankSpacesCheck(char* str);
 bool stringsEqual(const char* a, const char* b);
 bool usernameExists(const char* str, const char* filepath);
+bool checkWord(char* word);
+bool wordRepeats(char* word, const char* filepath);
 void rightUsersData(char* username, char* password);
 void registerUser(const char* filepath);
+void logInUser(const char* users);
+void adminDuties();
+void editWordList();
+void wordDeletion(const char* filepath);
+void wordAddition(const char* filepath);
+void stringCheck(char* str);
 
 const int DATA_SIZE = 16;
+const int WORD_SIZE = 6;
+
 
 int main()
 {
-    mainMenu();
-    int user_choice = myChoice();
-    char filepath[] = { "users.txt" };
-    if (user_choice == 1) {
-
-    }
-    else if (user_choice == 2) {
-        registerUser(filepath);
-    }
-
+    int choice = mainMenu();
+    return 0;
 }
 
-void mainMenu() {
+int mainMenu() {
     std::cout << "\t    Main menu "<<std::endl;
     std::cout << "Please choose one of the following options: " << std::endl;
     std::cout << "1. Sign in as an existing user" << std::endl;
     std::cout << "2. Register as a new user " << std::endl;
     std::cout << "3. Exit " << std::endl;
     std::cout << "Your choice: " << std::endl;
+    int user_choice = myChoice();
+    char users[] = { "users.txt" };
+    if (user_choice == 1) {
+        logInUser(users);
+    }
+    else if (user_choice == 2) {
+        registerUser(users);
+    }
+    return user_choice;
 }
 
 int mySizeOf(const char* str) {
@@ -56,8 +67,8 @@ int myChoice() {
     bool validChoice = false;
     while (!validChoice) {
         if (*choice < '1' || *choice > '3' || mySizeOf(choice) > 1) {
-            std::cout << "Not a valid input. Try aggain: "<<std::endl;
-            std::cout << "Please enter your choice: ";
+            std::cout << "Not a valid input. Enter 1, 2 or 3. Try again! "<<std::endl;
+            std::cout << "Please, enter your choice: ";
             std::cin >> choice;
         }
         else {
@@ -211,5 +222,250 @@ void registerUser(const char* filepath) {
 
     std::cout << "Registration successful!" << std :: endl;
 
+}
+
+void logInUser(const char* users) {
+    if (users == nullptr) {
+        std::cout << "Nullpointer error.";
+        return;
+    }
+
+    const char adminUser[] = { "Boyan" };
+    const char adminPass[] = { "1234" };
+
+    char username[DATA_SIZE], password[DATA_SIZE];
+    rightUsersData(username, password);
+    if (stringsEqual(username, adminUser) && stringsEqual(password, adminPass)) {
+        adminDuties();
+    }
+    else {
+
+    }
+}
+
+void adminDuties() {
+    std::cout << "You are now logged in as an admin \n";
+    std::cout << "You can either: \n";
+    std::cout << "1. Check the leaderboard \n";
+    std::cout << "2. Edit the word list \n";
+    std::cout << "3. Return to the main menu \n";
+    std::cout << "Please select your decision: ";
+    int decision = myChoice();
+    if (decision == 1) {
+        
+    }
+    else if (decision == 2) {
+        editWordList();
+    }
+    else {
+        mainMenu();
+    }
+}
+
+void stringCheck(char* str) {
+    if (str == nullptr) {
+        std::cout << "Nullpointer error.";
+        return;
+    }
+
+    std::cin >> std::ws;
+    std::cin.getline(str, DATA_SIZE);
+    std::cout << std::endl;
+    bool rightStr = false;
+
+    while (!rightStr) {
+        if (mySizeOf(str) > 15 || mySizeOf(str) == 0) {
+            std::cout << "The action must be 'add', 'delete' or 'back'." << std::endl;
+            std::cout << "Action:";
+            std::cin.getline(str, DATA_SIZE);
+            std::cout << std::endl;
+            continue;
+        }
+
+        if (!(blankSpacesCheck(str))) {
+            std::cout << "The action must not contain blank spaces." << std::endl;
+            std::cout << "Action:";
+            std::cin.getline(str, DATA_SIZE);
+            std::cout << std::endl;
+            continue;
+        }
+        rightStr = true;
+    }
+}
+
+void editWordList() {
+    std::cout << "What would you like to do? \n";
+    std::cout << "Enter 'delete' to remove words from the list, 'add' to include or 'back'. \n";
+    std::cout << "Action: ";
+    char removal[] = { "delete" };
+    char add[] = { "add" };
+    char back[] = {"back"};
+    char action[DATA_SIZE];
+    std::cin>>std::ws;
+    std::cin.getline(action, DATA_SIZE);
+
+    const char words[] = { "words.txt" };
+
+    if (stringsEqual(action, removal)) {
+        wordDeletion(words);
+    }
+    else if (stringsEqual(action, add)) {
+        wordAddition(words);
+    }
+    else if(stringsEqual(action, back)){
+        adminDuties();
+    }else {
+        std::cout << "Wrong input. Please, try again: \n";
+        editWordList();
+    }
+}
+
+bool checkWord(char* word) {
+    if (word == nullptr) {
+        std::cout << "Nullpointer error. \n";
+        return 0;
+    }
+    int cnt = 0;
+    while (*word != '\0') {
+        if (!(*word >= 'a' && *word <= 'z')) {
+            return false;
+        }
+        word++;
+        cnt++;
+    }
+    if (cnt != 5)
+        return false;
+    return true;
+}
+
+bool wordRepeats(char* word, const char* filepath) {
+    if (word == nullptr) {
+        std::cout << "Nullpointer error. \n";
+        return 0;
+    }
+    std::ofstream ofs(filepath, std::ios::app);
+    if (!ofs.is_open()) {
+        std::cout << "A connection with the database could not be established." << std::endl;
+        std::cout << "Please close the program and try again." << std::endl;
+        return 0;
+    }
+    ofs.close();
+
+    std::ifstream ifs(filepath);
+    if (!ifs.is_open()) {
+        std::cout << "A connection with the database could not be established." << std::endl;
+        std::cout << "Please close the program and try again." << std::endl;
+        return 0;
+    }
+    char currentWord[WORD_SIZE];
+    while (ifs >> currentWord) {
+        if (stringsEqual(currentWord, word)) {
+            std::cout << "This word already exists in the file.";
+            return 0; 
+        }
+    }
+    ifs.close();
+    return 1;
+}
+
+void wordAddition(const char* filepath) {
+    if (filepath == nullptr) {
+        std::cout << "Nullpointer error. \n";
+        return;
+    }
+    
+    char newWord[WORD_SIZE];
+    std::cout << "Enter the new word: ";
+    std::cin.getline(newWord, WORD_SIZE);
+    
+    if (checkWord(newWord) && wordRepeats(newWord, filepath)) {
+
+        std::ofstream ofs(filepath, std::ios::app);
+        
+        if (!ofs.is_open()) {
+            std::cout << "A connection with the database could not be established." << std::endl;
+            std::cout << "Please close the program and try again.";
+            return;
+        }
+
+        ofs << newWord << std::endl;
+
+        ofs.close();
+        std::cout << "Word added successfully. \n";
+        editWordList();
+
+    }
+    else {
+        std::cout << "The words must be made up of 5 small Latin letters and must not already exist in the file. \n";
+        std::cout << "Try again. \n";
+        wordAddition(filepath);
+    }
+
+}
+
+void wordDeletion(const char* filepath) {
+    if (filepath == nullptr) {
+        std::cout << "Nullpointer error. \n";
+        return;
+    }
+    char wordToRemove[WORD_SIZE];
+    std::cout << "Enter the word you want to delete: ";
+    std::cin.getline(wordToRemove, WORD_SIZE);
+
+    if (checkWord(wordToRemove) && !wordRepeats(wordToRemove, filepath)) {
+
+        std::ofstream createFile(filepath, std::ios::app);
+        createFile.close();
+
+        std::ifstream ifs(filepath);
+
+        if (!ifs.is_open()) {
+            std::cout << "A connection with the database could not be established." << std::endl;
+            std::cout << "Please close the program and try again.";
+            return;
+        }
+
+        char temp[] = { "temp.txt" };
+        std::ofstream ofs(temp);
+
+        if (!ofs.is_open()) {
+            std::cout << "Could not create a temporary file." << std::endl;
+            std::cout << "Please close the program and try again.";
+            ifs.close();
+            return;
+        }
+
+        char currentWord[WORD_SIZE];
+        bool found = false;
+
+        while (ifs >> currentWord) {
+            if (!stringsEqual(currentWord, wordToRemove)) {
+                ofs << currentWord << std::endl;
+            }
+            else {
+                found = true;
+            }
+        }
+        ifs.close();
+        ofs.close();
+
+        if (!found) {
+            std::cout << "The word was not found. \n";
+            remove(temp);
+            return;
+        }
+
+        remove(filepath);
+        rename(temp, filepath);
+
+        std::cout << "Word removed successfully. \n";
+        editWordList();
+
+    }
+    else {
+        std::cout << "The words must be made up of 5 small Latin letters and already be in the file. \n";
+        std::cout << "Try again. \n";
+        wordDeletion(filepath);
+    }
 }
 
