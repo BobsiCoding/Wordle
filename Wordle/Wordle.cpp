@@ -5,12 +5,13 @@
 
 //Some const values that we are going to need
 const int DATA_SIZE = 64;
-const int WORD_SIZE = 6;
+const int WORD_SIZE = 64;
 const int ALPHABET = 26;
 const int LETTER_COUNT = 2;
 const int USERNAME_SIZE = 15;
 const int PASSWORD_SIZE = 15;
 const int ACTION_SIZE = 9;
+const int CORRECT_WORD_SIZE = 6;
 const char removal[] = { "delete" };
 const char add[] = { "add" };
 const char back[] = { "back" };
@@ -24,6 +25,12 @@ const char* RESET = "\033[0m";
 const char* RED = "\033[31m";
 const char* PURPLE = "\033[35m";
 
+//We are going to need this for when the admin checks the leaderboard
+struct Player {
+	char username[DATA_SIZE];
+	int gamesWon;
+	int gamesPlayed;
+};
 //All of our functions will be initialised here and defined after the main()
 int mainMenu();
 int mySizeOf(const char* str);
@@ -56,16 +63,14 @@ void letterRepsMinusGreen(char* guessedWord, char* secretWord, bool* green, int 
 void colorFeedback(char* guessedWord, bool* green, int tempMatrix[ALPHABET][LETTER_COUNT]);
 bool gameplay();
 void updateLeaderboard(const char* username, const bool wonGame);
-double calcWinrate(double gamesWon, double gamesPlayed);
-void sortByGamesPlayed(Player* arr, int size);
+double calcWinrate(const Player& player);
 void checkLeaderboard();
-//We are going to need this for when the admin checks the leaderboard
-struct Player {
-	char username[DATA_SIZE];
-	int gamesWon;
-	int gamesPlayed;
-	double winrate;
-};
+void sortByGamesPlayed(Player* arr, const int players);
+void printLeaderboard(Player* arr, const int players);
+void sortByWinrate(Player* arr, const int players);
+int countPlayers();
+Player* loadLeaderboard(int& players);
+
 
 int main()
 {
@@ -96,6 +101,7 @@ int mainMenu() {
 
 	return user_choice;
 }
+
 //A function which gets the size of a string
 int mySizeOf(const char* str) {
 	if (str == nullptr) {
@@ -109,6 +115,7 @@ int mySizeOf(const char* str) {
 	}
 	return cnt;
 }
+
 //Making sure the input for choice is valid
 int myChoice() {
 	const int INPUTSIZE = 16;
@@ -128,6 +135,7 @@ int myChoice() {
 	}
 	return *choice - '0';
 }
+
 //Making sure there are no blank spaces in the string because they are not allowed
 bool blankSpacesCheck(const char* str) {
 	if (str == nullptr) {
@@ -142,6 +150,7 @@ bool blankSpacesCheck(const char* str) {
 	return true;
 
 }
+
 //Comparing two strings
 bool stringsEqual(const char* str1, const char* str2) {
 	if (str1 == nullptr || str2 == nullptr) {
@@ -158,6 +167,7 @@ bool stringsEqual(const char* str1, const char* str2) {
 		
 	return true;
 }
+
 //Checking whether a username is in the database   
 bool usernameExists(const char* username, const char* filepath) {
 	if (username == nullptr || filepath == nullptr) {
@@ -182,6 +192,7 @@ bool usernameExists(const char* username, const char* filepath) {
 	ifs.close();
 	return false;
 }
+
 //Checking whether a password and username matches with the one in the database
 bool passwordMatch(const char* username, const char* password, const char* filepath) {
 	if (password == nullptr || filepath == nullptr || username == nullptr) {
@@ -206,11 +217,13 @@ bool passwordMatch(const char* username, const char* password, const char* filep
 	ifs.close();
 	return false;
 }
+
 //This error message is used multiple times, so it is better if we make it its own funciton
 void fileConnectionErrorMessage() {
 	std::cout << "A connection with the database could not be established. \n";
 	std::cout << "Please, close the program and try again. \n";
 }
+
 //Makes sure the user enters a valid username and password
 void enterUsersData(char* username, char* password) {
 	if (username == nullptr || password == nullptr) {
@@ -219,7 +232,6 @@ void enterUsersData(char* username, char* password) {
 	}
 
 	std::cout << "Username: ";
-	std::cin >> std::ws;
 	std::cin.getline(username, DATA_SIZE);
 	std::cout << std::endl;
 	
@@ -234,6 +246,7 @@ void enterUsersData(char* username, char* password) {
 	std::cout << "Your username: " << username << " and password: " << password << std::endl;
 	std::cout << std::endl;
 }
+
 //Specifically for the username
 void rightUsernameCheck(char* username) {
 	if (username == nullptr) {
@@ -263,6 +276,7 @@ void rightUsernameCheck(char* username) {
 
 	return;
 }
+
 //Specifically for the password
 void rightPasswordCheck(char* password) {
 	if (password == nullptr) {
@@ -292,6 +306,7 @@ void rightPasswordCheck(char* password) {
 	}
 	return;
 }
+
 //Registering a user in the database
 void registerUser(const char* filepath) {
 	if (filepath == nullptr) {
@@ -326,6 +341,7 @@ void registerUser(const char* filepath) {
 	std::cout << GREEN << "Registration successful!" << RESET << std::endl;
 
 }
+
 //Logging in option and separating into user nd admin profile
 void logInUser(const char* users) {
 	if (users == nullptr) {
@@ -351,6 +367,7 @@ void logInUser(const char* users) {
 		std::cout << RED << "No such user was found. Check your login and password information. \n" << RESET;
 	}
 }
+
 //Possible admin oppportunities
 void adminDuties(const char* usersFilepath) {
 	if (usersFilepath == nullptr) {
@@ -380,6 +397,7 @@ void adminDuties(const char* usersFilepath) {
 		
 	} while (decision != 3);
 }
+
 //Function making sure the admin enters a vslid action when edditing the word list
 void actionCheck(char* action) {
 	if (action == nullptr) {
@@ -410,6 +428,7 @@ void actionCheck(char* action) {
 		rightAction = true;
 	}
 }
+
 //Possible actions when edditing the word list
 void editWordList() {
 
@@ -431,12 +450,14 @@ void editWordList() {
 	} while (!stringsEqual(action, back));
 
 }
+
 //Check to see if a char is a small latin letter
 bool latinLetters(const char ch) {
 	if (ch >= 'a' && ch <= 'z')
 		return true;
 	return false;
 }
+
 //Checking whether the word meets our criteria - 5 small latin letter words
 bool checkWord(const char* word) {
 	if (word == nullptr) {
@@ -450,10 +471,11 @@ bool checkWord(const char* word) {
 		}
 		cnt++;
 	}
-	if (cnt != 5)
+	if (cnt != CORRECT_WORD_SIZE - 1)
 		return false;
 	return true;
 }
+
 //Check to see if the word already exists in the word file to avoid repetitions
 bool wordRepeats(const char* word) {
 	if (word == nullptr) {
@@ -477,6 +499,7 @@ bool wordRepeats(const char* word) {
 	ifs.close();
 	return false;
 }
+
 //Function to add words in the word file
 void wordAddition(const char* filepath) {
 	if (filepath == nullptr) {
@@ -512,6 +535,7 @@ void wordAddition(const char* filepath) {
 	} while (!additionSuccessful);
 	return;
 }
+
 //Functions to remove words from the wrod file
 void wordDeletion(const char* filepath) {
 	if (filepath == nullptr) {
@@ -574,6 +598,7 @@ void wordDeletion(const char* filepath) {
 		}
 	} while (!ramovalSuccessful);
 }
+
 //Functions to count the words in the word file
 int countWords() {
 	std::ifstream ifs(words);
@@ -591,6 +616,7 @@ int countWords() {
 	ifs.close();
 	return count;
 }
+
 //Function to choose a random word from the word file
 char* randomWord() {
 	int totalWords = countWords();
@@ -609,7 +635,7 @@ char* randomWord() {
 	int currentIndex = 0;
 	while (ifs >> currentWord) {
 		if (currentIndex == randomIndex) {
-			char* randomWord = new char[WORD_SIZE];
+			char* randomWord = new char[CORRECT_WORD_SIZE];
 			int i;
 			for (i = 0; currentWord[i] != '\0'; i ++) {
 				randomWord[i] = currentWord[i];
@@ -622,6 +648,7 @@ char* randomWord() {
 	}
 	return nullptr;
 }
+
 //Function to determine whether a letter's feedback should be yellow
 bool yellowLetters(char a, int matrix[ALPHABET][LETTER_COUNT]) {
 	if (matrix == nullptr) {
@@ -636,6 +663,7 @@ bool yellowLetters(char a, int matrix[ALPHABET][LETTER_COUNT]) {
 	}
 	return false;
 }
+
 //A function to fill a two dimansional array with how many times a letter is found in the secret word
 void matrixFill(const char* secretWord, int matrix[ALPHABET][LETTER_COUNT]) {
 	if (secretWord == nullptr || matrix == nullptr) {
@@ -655,6 +683,7 @@ void matrixFill(const char* secretWord, int matrix[ALPHABET][LETTER_COUNT]) {
 
 	}
 }
+
 //The rules of the game
 void gameRules() {
 	std::cout << PURPLE << "You are about to play WORDLE! \n";
@@ -665,6 +694,7 @@ void gameRules() {
 	std::cout << YELLOW << "Yellow" << RESET << " - the letter is correct, but in the wrong spot. \n";
 	std::cout << "Good luck! \n";
 }
+
 //Makes sure a guess is valid
 void validGuess(int currentGuess, char* guessedWord) {
 	if (guessedWord == nullptr) {
@@ -689,6 +719,7 @@ void validGuess(int currentGuess, char* guessedWord) {
 		valid = true;
 	}
 }
+
 //Making sure that yellow and green letters dont oppose each other.
 void letterRepsMinusGreen(char* guessedWord, char* secretWord,bool* green, int tempMatrix[ALPHABET][LETTER_COUNT]) {
 	if (guessedWord == nullptr || secretWord == nullptr || green == nullptr || tempMatrix == nullptr) {
@@ -704,6 +735,7 @@ void letterRepsMinusGreen(char* guessedWord, char* secretWord,bool* green, int t
 		}
 	}
 }
+
 //Color feedback
 void colorFeedback(char* guessedWord, bool* green, int tempMatrix[ALPHABET][LETTER_COUNT]) {
 	for (int i = 0; guessedWord[i] != '\0';i++) {
@@ -719,6 +751,7 @@ void colorFeedback(char* guessedWord, bool* green, int tempMatrix[ALPHABET][LETT
 		}
 	}
 }
+
 //The actual game
 bool gameplay() {
 	char* secretWord;
@@ -741,7 +774,7 @@ bool gameplay() {
 
 		validGuess(currentGuess,guessedWord);
 		
-		bool green[WORD_SIZE] = { false };
+		bool green[CORRECT_WORD_SIZE] = { false };
 
 		letterRepsMinusGreen(guessedWord, secretWord, green, tempMatrix);
 
@@ -806,18 +839,123 @@ void updateLeaderboard(const char* username,const bool wonGame) {
 	rename(tempFilepath, leaderboard);
 
 }
+
 //Calculates the winrate of a player in decimal value
-double calcWinrate(double gamesWon, double gamesPlayed) {
-	if (gamesPlayed == 0)
+double calcWinrate(const Player& player) {
+	if (player.gamesPlayed == 0)
 		return 0.0;
-	double winrate = (gamesWon / gamesPlayed);
+	double winrate = (player.gamesWon*(1.0) / player.gamesPlayed);
 	return winrate;
 }
 
-void sortByGamesPlayed(Player* arr, int size) {
-
+//Making a choice how to print the leaderboard
+void checkLeaderboard() {
+	int choice;
+	int players = 0;
+	Player* leaderboardData = loadLeaderboard(players);
+	if (leaderboardData == nullptr || players == 0) {
+		std::cout << "Leaderboard is empty.\n";
+		return;
+	}
+	do {
+		std::cout << YELLOW << "Choose how to proceed: \n";
+		std::cout << RESET << "1. View the leaderboard by winrate \n";
+		std::cout << "2. View the leaderboard by games played \n";
+		std::cout << "3. Go back \n";
+		std::cout << "Your choice: ";
+		choice = myChoice();
+		if (choice == 1) {
+			sortByWinrate(leaderboardData, players);
+		}
+		else if(choice == 2){
+			sortByGamesPlayed(leaderboardData, players);
+		}
+		printLeaderboard(leaderboardData, players);
+	} while (choice != 3);
+	delete[] leaderboardData;
 }
 
-void checkLeaderboard() {
+//Prints the leaderboard
+void printLeaderboard(Player* arr,const int players) {
+	std::cout << "\nUSERNAME        WON   PLAYED   WINRATE\n";
+	std::cout << "--------------------------------------\n";
+	const int percentage = 100;
+	for (int i = 0; i < players; i++) {
+		std::cout << arr[i].username << "\t\t"
+			<< arr[i].gamesWon << "\t"
+			<< arr[i].gamesPlayed << "\t"
+			<< calcWinrate(arr[i]) * percentage << "%\n";
+	}
+}
 
+//Sorts the players by games played
+void sortByGamesPlayed(Player* arr,const int players) {
+	for (int i = 0; i < players - 1; i++) {
+		for (int j = 0; j < players - i - 1; j++) {
+			if (arr[j].gamesPlayed < arr[j + 1].gamesPlayed) {
+				Player temp = arr[j];
+				arr[j] = arr[j + 1];
+				arr[j + 1] = temp;
+			}
+		}
+	}
+}
+
+//Sorts the leaderboard by winrate
+void sortByWinrate(Player* arr,const int players) {
+	for (int i = 0; i < players - 1; i++) {
+		for (int j = 0; j < players - i - 1; j++) {
+			if (calcWinrate(arr[j]) < calcWinrate(arr[j + 1])) {
+				Player temp = arr[j];
+				arr[j] = arr[j + 1];
+				arr[j + 1] = temp;
+			}
+		}
+	}
+}
+
+//This gives us info how many players are in the leaderboard
+int countPlayers() {
+	std::ifstream ifs(leaderboard);
+	if (!ifs.is_open()) {
+		fileConnectionErrorMessage();
+		return 0;
+	}
+
+	int count = 0;
+	char name[DATA_SIZE];
+	int won, played;
+
+	while (ifs >> name >> won >> played) {
+		count++;
+	}
+
+	ifs.close();
+	return count;
+}
+
+//Creates a dynamic array with the players data from leaderboard
+Player* loadLeaderboard(int& players) {
+	players = countPlayers();
+		if (players == 0){
+			std::cout << "No statistics yet \n";
+			return nullptr;
+	}
+
+	std::ifstream ifs(leaderboard);
+	if (!ifs.is_open()) {
+		fileConnectionErrorMessage();
+		return nullptr;
+	}
+
+	Player* entries = new Player[players];
+
+	for (int i = 0; i < players; i++) {
+		ifs >> entries[i].username
+			>> entries[i].gamesWon
+			>> entries[i].gamesPlayed;
+	}
+
+	ifs.close();
+	return entries;
 }

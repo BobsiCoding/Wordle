@@ -1,2 +1,4 @@
 Bobi 1 1
-Bobi2 1 1
+Bobi2 2 3
+Rachko 0 3
+skip 1 1
